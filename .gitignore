@@ -1,0 +1,17 @@
+# Frontend dependencies
+frontend/node_modules/
+frontend/.next/
+frontend/dist/
+
+# Backend environments & databases
+backend/.venv/
+backend/env/
+backend/__pycache__/
+backend/*.pyc
+
+# Database files (Optional: if you want to keep local test data offline)
+backend/medical_history.db
+
+# Large dataset files
+backend/chest_xray/
+backend/_MACOSX/
