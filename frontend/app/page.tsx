@@ -238,24 +238,16 @@ export default function Home() {
 
   // NEW: Add these for the image viewer
   const [viewMode, setViewMode] = useState<'original' | 'heatmap'>('original');
-  const [originalImageURL, setOriginalImageURL] = useState<string | null>(null);
+  
+
+  const [originalImageBase64, setOriginalImageBase64] = useState<string | null>(null);
 
   
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (selectedImage) {
-      const url = URL.createObjectURL(selectedImage);
-      setOriginalImageURL(url);
-
-      // Cleanup function to revoke the object URL on unmount or when image changes
-      return () => {
-        URL.revokeObjectURL(url);
-      };
-    }
-  }, [selectedImage]);
+  
 
   // NEW: Fetch patient history
   const fetchPatientHistory = useCallback(async (id: string) => {
@@ -274,15 +266,22 @@ export default function Home() {
   }, []);
 
   const handleCapture = useCallback((file: File) => {
-    setSelectedImage(file);
-    setShowCamera(false);
-    setPredictionResult(null);
-  }, []);
+  setSelectedImage(file);
+  setShowCamera(false);
+  setPredictionResult(null);
+  // Convert to base64 for PDF
+  const reader = new FileReader();
+  reader.onloadend = () => setOriginalImageBase64(reader.result as string);
+  reader.readAsDataURL(file);
+}, []);
 
-  const handleFileSelect = useCallback((file: File) => {
-    setSelectedImage(file);
-    setPredictionResult(null);
-  }, []);
+const handleFileSelect = useCallback((file: File) => {
+  setSelectedImage(file);
+  setPredictionResult(null);
+  const reader = new FileReader();
+  reader.onloadend = () => setOriginalImageBase64(reader.result as string);
+  reader.readAsDataURL(file);
+}, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) handleFileSelect(acceptedFiles[0]);
@@ -492,7 +491,7 @@ export default function Home() {
           </button>
 
           {/* NEW: Image Viewer with Original/Heatmap Toggle */}
-          {predictionResult && predictionResult.heatmap_url && originalImageURL && (
+          {predictionResult && predictionResult.heatmap_url && originalImageBase64 && (
             <div className="bg-gray-800 rounded-2xl border border-gray-700 p-4 mt-6 animate-fadeIn">
               <div className="flex justify-center gap-2 mb-4">
                 <button
@@ -521,12 +520,12 @@ export default function Home() {
                 {/* Use a standard `img` tag for external/local blob URLs */}
                 <img
                   src={
-                    viewMode === 'original'
-                      ? originalImageURL
-                      : predictionResult.heatmap_url?.startsWith('http')
+  viewMode === 'original'
+    ? originalImageBase64
+    : predictionResult.heatmap_url?.startsWith('http')
       ? predictionResult.heatmap_url
       : `http://localhost:8000${predictionResult.heatmap_url}`
-                  }
+}
                   alt={viewMode === 'original' ? 'Original X-Ray' : 'AI Heatmap'}
                   className="w-full h-full object-contain"
                 />
@@ -557,6 +556,10 @@ export default function Home() {
       diagnosis={predictionResult.prediction || 'Unknown'}
       confidenceScores={confidenceScores}
       date={new Date().toLocaleString()}
+      originalImageURL={originalImageBase64  ?? undefined}          // <-- changed
+  heatmapURL={predictionResult.heatmap_url?.startsWith('http') 
+    ? predictionResult.heatmap_url 
+    : `http://localhost:8000${predictionResult.heatmap_url}`}
     />
   </div>
 )}

@@ -8,6 +8,7 @@ import {
   View,
   StyleSheet,
   PDFDownloadLink,
+  Image,
 } from '@react-pdf/renderer';
 
 // ==========================================
@@ -195,7 +196,54 @@ const styles = StyleSheet.create({
     lineHeight: 1.4,
     fontStyle: 'italic',
   },
+  
+
+  // Image Comparison Section
+  imageSection: {
+    marginBottom: 20,
+  },
+  imageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  imageContainer: {
+    width: '48%',
+  },
+  imageLabel: {
+    fontSize: 9,
+    color: '#475569',
+    textAlign: 'center',
+    marginBottom: 4,
+    fontFamily: 'Helvetica-Bold',
+  },
+  compareImage: {
+    width: '100%',
+    height: 150,
+    objectFit: 'contain',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 4,
+    backgroundColor: '#000000',
+  },
+  heatmapLegend: {
+    marginTop: 10,
+    padding: 8,
+    backgroundColor: '#eff6ff',
+    borderRadius: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: '#3b82f6',
+  },
+  legendText: {
+    fontSize: 8,
+    color: '#1e40af',
+    lineHeight: 1.4,
+  },
 });
+
+
+  
+
+
 
 // ==========================================
 // 2. Props & Interfaces
@@ -215,6 +263,8 @@ interface MedicalReportPDFProps {
   diagnosis: string;
   confidenceScores: ConfidenceScores;
   date: string;
+  originalImageURL?: string;
+  heatmapURL?: string;
 }
 
 
@@ -228,6 +278,8 @@ const MedicalReportPDF: React.FC<MedicalReportPDFProps> = ({
   diagnosis,
   confidenceScores,
   date,
+  originalImageURL,
+  heatmapURL,
 }) => {
   const isNormal = diagnosis === 'Normal';
 
@@ -319,6 +371,48 @@ const MedicalReportPDF: React.FC<MedicalReportPDFProps> = ({
             </View>
           ))}
         </View>
+                {/* AI Heatmap Comparison */}
+        {(originalImageURL || heatmapURL) && (
+          <View style={styles.imageSection}>
+            <Text style={styles.sectionTitle}>AI Diagnostic Heatmap Analysis (Grad-CAM)</Text>
+            
+            <View style={styles.imageRow}>
+              {/* Original X-Ray */}
+              <View style={styles.imageContainer}>
+                <Text style={styles.imageLabel}>Original X-Ray</Text>
+                {originalImageURL ? (
+                  <Image src={originalImageURL} style={styles.compareImage} />
+                ) : (
+                  <View style={[styles.compareImage, { justifyContent: 'center', alignItems: 'center' }]}>
+                    <Text style={{ fontSize: 8, color: '#9ca3af' }}>Not Available</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* AI Heatmap */}
+              <View style={styles.imageContainer}>
+                <Text style={styles.imageLabel}>AI Heatmap (Grad-CAM)</Text>
+                {heatmapURL ? (
+                  <Image src={heatmapURL} style={styles.compareImage} />
+                ) : (
+                  <View style={[styles.compareImage, { justifyContent: 'center', alignItems: 'center' }]}>
+                    <Text style={{ fontSize: 8, color: '#9ca3af' }}>Not Available</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Heatmap Legend / Remarks */}
+            <View style={styles.heatmapLegend}>
+              <Text style={styles.legendText}>
+                🔬 <Text style={{ fontWeight: 'bold' }}>AI Focus Analysis:</Text> Red/Orange regions indicate the lung areas the AI considered most important for its diagnosis. Blue regions represent areas the model mostly ignored.
+              </Text>
+              <Text style={[styles.legendText, { marginTop: 4 }]}>
+                🧠 <Text style={{ fontWeight: 'bold' }}>Clinical Insight:</Text> The AI focuses on healthy chest tissue patterns to determine its final result. Heatmap highlights correlate with the model's diagnostic confidence regions.
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Disclaimer */}
         <View style={styles.disclaimer}>

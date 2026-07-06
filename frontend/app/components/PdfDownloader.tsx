@@ -20,6 +20,8 @@ interface DownloadReportButtonProps {
   confidenceScores: ConfidenceScores;
   date: string;
   fileName?: string;
+  originalImageURL?: string;   // <-- add this
+  heatmapURL?: string;
 }
 
 export const DownloadReportButton: React.FC<DownloadReportButtonProps> = ({
@@ -29,6 +31,8 @@ export const DownloadReportButton: React.FC<DownloadReportButtonProps> = ({
   confidenceScores,
   date,
   fileName,
+  originalImageURL,   // <-- add this
+  heatmapURL,
 }) => {
   const generatedFileName =
     fileName || `Medical-Report-${patientId}-${new Date().toISOString().split('T')[0]}.pdf`;
@@ -42,6 +46,8 @@ export const DownloadReportButton: React.FC<DownloadReportButtonProps> = ({
           diagnosis={diagnosis}
           confidenceScores={confidenceScores}
           date={date}
+          originalImageURL={originalImageURL}   // add this
+          heatmapURL={heatmapURL}
         />
       }
       fileName={generatedFileName}
