@@ -8,6 +8,14 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict
 from datetime import datetime
+import os
+import numpy as np
+
+# --- 1. NEW IMPORTS for Grad-CAM and Static Files ---
+from fastapi.staticfiles import StaticFiles
+from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+from pytorch_grad_cam.utils.image import show_cam_on_image
 
 # -------------------------------
 # App setup
@@ -16,26 +24,41 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],   # Next.js frontend
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+os.makedirs("static", exist_ok=True)
+
+
+# --- 2. MOUNT STATIC DIRECTORY ---
+# This makes the 'static' folder accessible via URL (e.g. /static/image.jpg)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # -------------------------------
-# Database Setup
+# Database and Model Globals
 # -------------------------------
 DB_NAME = "medical_history.db"
+model = None
+device = None
+transform = None
 
 def get_db_connection():
-    """Create a new database connection with row factory for dict-like access."""
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     return conn
 
 @app.on_event("startup")
 async def startup_event():
-    # 1. Initialize SQLite Database
+    global model, device, transform
+
+    # --- 3. CREATE STATIC DIRECTORY ON STARTUP ---
+    os.makedirs("static", exist_ok=True)
+    print("✅ Static directory ensured.")
+
+    # Initialize SQLite Database
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -54,12 +77,11 @@ async def startup_event():
     conn.close()
     print("✅ Database initialized.")
 
-    # 2. Load PyTorch Model (existing logic)
-    global model, device, transform
+    # Load PyTorch Model
     device = torch.device("cpu")
     model = models.resnet18(weights=None)
     num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, 2)  # Binary: Normal vs Pneumonia
+    model.fc = nn.Linear(num_ftrs, 2)
     
     state_dict = torch.load("pneumonia_model.pth", map_location=device)
     model.load_state_dict(state_dict)
@@ -67,18 +89,15 @@ async def startup_event():
     model.eval()
     print("✅ Model loaded successfully on CPU.")
 
-# -------------------------------
-# Image preprocessing (kept consistent)
-# -------------------------------
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225]),
-])
+    # Define transforms
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
 
 # -------------------------------
-# POST /predict endpoint (Updated)
+# POST /predict endpoint (Updated with Grad-CAM)
 # -------------------------------
 @app.post("/predict")
 async def predict(
@@ -86,46 +105,69 @@ async def predict(
     patient_name: str = Form(...),
     patient_id: str = Form(...)
 ):
-    # 1. Read and preprocess image
     contents = await file.read()
     image = Image.open(io.BytesIO(contents)).convert("RGB")
+    
+    # Preprocess image for the model
     input_tensor = transform(image).unsqueeze(0).to(device)
 
-    # 2. Inference
+    # --- 4. GRAD-CAM: PREPARE VISUALIZATION & TARGETS ---
+    # Prepare image for visualization (un-normalized, resized, 0-1 float)
+    vis_transform = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
+    vis_tensor = vis_transform(image)
+    rgb_img_float = vis_tensor.permute(1, 2, 0).numpy() # H, W, C
+
+    # Target layer for Grad-CAM
+    target_layer = [model.layer4[-1]]
+    
+    # Inference
     with torch.no_grad():
         outputs = model(input_tensor)
         probabilities = torch.softmax(outputs, dim=1)[0]
+    
+    # Determine the winning class index for the heatmap
+    target_category_idx = torch.argmax(probabilities).item()
+    targets_for_cam = [ClassifierOutputTarget(target_category_idx)]
 
-    # 3. Calculate scores (simulate 3-class output from 2-class model)
+    # --- 5. GRAD-CAM: COMPUTE AND SAVE HEATMAP ---
+    cam = GradCAM(model=model, target_layers=target_layer)
+    grayscale_cam = cam(input_tensor=input_tensor, targets=targets_for_cam)
+    grayscale_cam = grayscale_cam[0, :] # Take the first (and only) one
+
+    # Overlay heatmap on the image
+    cam_image = show_cam_on_image(rgb_img_float, grayscale_cam, use_rgb=True)
+
+    # Save the heatmap image to the static folder
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    heatmap_filename = f"cam_{patient_id}_{timestamp}.jpg"
+    heatmap_path = os.path.join("static", heatmap_filename)
+    Image.fromarray(cam_image).save(heatmap_path)
+
+    # Create the public URL for the heatmap
+    heatmap_url = f"http://localhost:8000/static/{heatmap_filename}"
+
+    # Calculate scores and labels
     normal_conf = round(probabilities[0].item() * 100, 2)
     pneumonia_conf = round(probabilities[1].item() * 100, 2)
     bacterial_conf = round(pneumonia_conf / 2, 2)
     viral_conf = round(pneumonia_conf / 2, 2)
 
-    # Determine primary prediction label
-    if normal_conf >= bacterial_conf and normal_conf >= viral_conf:
-        prediction_label = "Normal"
-    elif bacterial_conf >= viral_conf:
-        prediction_label = "Bacterial Pneumonia"
-    else:
-        prediction_label = "Viral Pneumonia"
-
-    # 4. Save to Database
+    prediction_label = "Normal" if normal_conf >= pneumonia_conf else "Pneumonia"
+    
+    # Save to Database
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO scans (patient_name, patient_id, prediction, normal_score, bacterial_score, viral_score)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (patient_name, patient_id, prediction_label, normal_conf, bacterial_conf, viral_conf))
+    cursor.execute(
+        "INSERT INTO scans (patient_name, patient_id, prediction, normal_score, bacterial_score, viral_score) VALUES (?, ?, ?, ?, ?, ?)",
+        (patient_name, patient_id, prediction_label, normal_conf, bacterial_conf, viral_conf)
+    )
     conn.commit()
-    
-    # Retrieve the auto-generated ID and timestamp for the response
     scan_id = cursor.lastrowid
     cursor.execute("SELECT scan_date FROM scans WHERE id = ?", (scan_id,))
     scan_date = cursor.fetchone()["scan_date"]
     conn.close()
 
-    # 5. Return JSON response
+    # --- 6. ADD HEATMAP URL TO FINAL JSON RESPONSE ---
     return {
         "scan_id": scan_id,
         "scan_date": scan_date,
@@ -135,51 +177,28 @@ async def predict(
         "Normal": normal_conf,
         "Bacterial Pneumonia": bacterial_conf,
         "Viral Pneumonia": viral_conf,
-        "_note": (
-            "Model was trained on a 2‑class dataset (Normal vs Pneumonia). "
-            "Bacterial/Viral split is estimated. Retrain on a 3‑class dataset "
-            "for true subtype discrimination."
-        ),
+        "heatmap_url": heatmap_url,  # New key with the image URL
+        "_note": "Model was trained on a 2‑class dataset (Normal vs Pneumonia). Bacterial/Viral split is estimated.",
     }
 
 # -------------------------------
-# NEW: GET /history/{patient_id} endpoint
+# GET /history/{patient_id} endpoint (Unchanged)
 # -------------------------------
 @app.get("/history/{patient_id}")
 async def get_patient_history(patient_id: str):
-    """
-    Retrieve all scan history for a specific patient, sorted newest to oldest.
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    cursor.execute("""
-        SELECT id, patient_name, patient_id, scan_date, prediction, 
-               normal_score, bacterial_score, viral_score
-        FROM scans 
-        WHERE patient_id = ? 
-        ORDER BY scan_date DESC
-    """, (patient_id,))
-    
+    cursor.execute(
+        "SELECT id, patient_name, patient_id, scan_date, prediction, normal_score, bacterial_score, viral_score FROM scans WHERE patient_id = ? ORDER BY scan_date DESC",
+        (patient_id,)
+    )
     rows = cursor.fetchall()
     conn.close()
 
     if not rows:
         raise HTTPException(status_code=404, detail=f"No scan history found for patient ID: {patient_id}")
 
-    # Convert rows to list of dictionaries
-    history = []
-    for row in rows:
-        history.append({
-            "scan_id": row["id"],
-            "patient_name": row["patient_name"],
-            "patient_id": row["patient_id"],
-            "scan_date": row["scan_date"],
-            "prediction": row["prediction"],
-            "normal_score": row["normal_score"],
-            "bacterial_score": row["bacterial_score"],
-            "viral_score": row["viral_score"]
-        })
+    history = [dict(row) for row in rows]
 
     return {
         "patient_id": patient_id,

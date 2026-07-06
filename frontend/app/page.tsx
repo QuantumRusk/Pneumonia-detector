@@ -233,10 +233,29 @@ export default function Home() {
   const [patientName, setPatientName] = useState('');
   const [patientId, setPatientId] = useState('');
   const [scanHistory, setScanHistory] = useState<ScanHistoryItem[]>([]);
+// ... existing state variables ...
+  
 
+  // NEW: Add these for the image viewer
+  const [viewMode, setViewMode] = useState<'original' | 'heatmap'>('original');
+  const [originalImageURL, setOriginalImageURL] = useState<string | null>(null);
+
+  
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (selectedImage) {
+      const url = URL.createObjectURL(selectedImage);
+      setOriginalImageURL(url);
+
+      // Cleanup function to revoke the object URL on unmount or when image changes
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    }
+  }, [selectedImage]);
 
   // NEW: Fetch patient history
   const fetchPatientHistory = useCallback(async (id: string) => {
@@ -471,6 +490,60 @@ export default function Home() {
               </>
             )}
           </button>
+
+          {/* NEW: Image Viewer with Original/Heatmap Toggle */}
+          {predictionResult && predictionResult.heatmap_url && originalImageURL && (
+            <div className="bg-gray-800 rounded-2xl border border-gray-700 p-4 mt-6 animate-fadeIn">
+              <div className="flex justify-center gap-2 mb-4">
+                <button
+                  onClick={() => setViewMode('original')}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    viewMode === 'original'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  Original Image
+                </button>
+                <button
+                  onClick={() => setViewMode('heatmap')}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    viewMode === 'heatmap'
+                      ? 'bg-purple-600 text-white shadow-md'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  AI Heatmap (Grad-CAM)
+                </button>
+              </div>
+
+              <div className="relative aspect-square w-full bg-black rounded-lg overflow-hidden">
+                {/* Use a standard `img` tag for external/local blob URLs */}
+                <img
+                  src={
+                    viewMode === 'original'
+                      ? originalImageURL
+                      : predictionResult.heatmap_url?.startsWith('http')
+      ? predictionResult.heatmap_url
+      : `http://localhost:8000${predictionResult.heatmap_url}`
+                  }
+                  alt={viewMode === 'original' ? 'Original X-Ray' : 'AI Heatmap'}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+               {viewMode === 'heatmap' && (
+              <div className="mt-3 px-3 py-2 bg-blue-900/20 border border-blue-800/30 rounded-lg">
+                <p className="text-xs text-blue-300/80 text-center leading-relaxed">
+                  <span className="font-semibold">🔬 AI Focus Analysis:</span>{' '}
+                  <span className="text-red-400 font-medium">Red/Orange</span> regions indicate the lung areas the AI considered most important for its diagnosis.{' '}
+                  <span className="text-blue-400 font-medium">Blue</span> regions represent areas the model mostly ignored.
+                </p>
+              </div>
+            )}
+            </div>
+             
+
+          )}
 
           {predictionResult && !loading && <ResultsCard result={predictionResult} />}
 
