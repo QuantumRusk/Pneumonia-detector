@@ -107,9 +107,30 @@ async def predict(
 ):
     contents = await file.read()
     image = Image.open(io.BytesIO(contents)).convert("RGB")
+
+    # ████████████████████████████████████████████████
+    # --- Duplicate Patient ID / Name Mismatch Check ---
+    # ████████████████████████████████████████████████
+    conn = get_db_connection()
+    existing = conn.execute(
+        "SELECT patient_name FROM scans WHERE patient_id = ?",
+        (patient_id,)
+    ).fetchone()
+    conn.close()
+
+    if existing:
+        stored_name = existing["patient_name"]
+        if patient_name.strip().lower() != stored_name.strip().lower():
+            raise HTTPException(
+                status_code=400,
+                detail="Patient ID already assigned to a different patient name."
+            )
+    # ████████████████████████████████████████████████
     
     # Preprocess image for the model
     input_tensor = transform(image).unsqueeze(0).to(device)
+
+    
 
     # --- 4. GRAD-CAM: PREPARE VISUALIZATION & TARGETS ---
     # Prepare image for visualization (un-normalized, resized, 0-1 float)

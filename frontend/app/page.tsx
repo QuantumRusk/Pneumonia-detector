@@ -113,83 +113,151 @@ interface ScanHistoryItem {
 interface PatientTimelineProps {
   history: ScanHistoryItem[];
   patientName: string;
+  patientId: string;
 }
 
-const PatientTimeline: React.FC<PatientTimelineProps> = ({ history, patientName }) => {
-  if (history.length <= 1) return null;
+const PatientTimeline: React.FC<PatientTimelineProps> = ({ history, patientName, patientId }) => {
+  const [currentPage, setCurrentPage] = useState(0);
+  const itemsPerPage = 20;
+  const totalPages = Math.ceil(history.length / itemsPerPage);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
+  if (history.length === 0) return null;
+
+  const oldestScan = history[history.length - 1];
+  const oldestDateTime = new Date(oldestScan.scan_date).toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  const getFinalDecision = (prediction: string) => {
+    if (prediction === 'Normal') return 'Normal';
+    if (prediction.includes('Bacterial')) return 'Bacterial Pneumonia';
+    if (prediction.includes('Viral')) return 'Viral Pneumonia';
+    return prediction;
   };
 
-  const getDotColor = (prediction: string) => {
-    if (prediction === 'Normal') return 'bg-green-500';
-    if (prediction.includes('Bacterial')) return 'bg-red-500';
-    if (prediction.includes('Viral')) return 'bg-orange-500';
-    return 'bg-gray-500';
-  };
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  const formatTime = (dateString: string) =>
+    new Date(dateString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+  // Slice the history array for current page
+  const startIdx = currentPage * itemsPerPage;
+  const pageItems = history.slice(startIdx, startIdx + itemsPerPage);
 
   return (
     <div className="mt-8 p-6 bg-gray-800/50 rounded-2xl border border-gray-700 animate-fadeIn">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-white">
-          Patient Timeline: <span className="text-blue-400">{patientName}</span>
-        </h3>
-        <span className="text-xs text-gray-400 bg-gray-800 px-3 py-1 rounded-full">
-          {history.length} scans total
-        </span>
+      <div className="mb-4 p-3 bg-blue-900/20 border border-blue-800/30 rounded-lg">
+        <p className="text-sm text-blue-300/80 text-center">
+          <span className="font-semibold">Patient {patientName}</span>’s first scan was performed on{' '}
+          <span className="font-semibold text-white">{oldestDateTime}</span>
+        </p>
       </div>
 
-      <div className="relative">
-        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-700"></div>
-        <div className="space-y-6">
-          {history.map((scan, index) => (
-            <div key={scan.scan_id} className="relative flex items-start">
-              <div className={`absolute left-2 mt-2 h-4 w-4 rounded-full border-2 border-gray-800 shadow ${getDotColor(scan.prediction)}`}></div>
-              <div className="ml-10 flex-1 bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-gray-600 transition-colors">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-300 font-medium">{formatDate(scan.scan_date)}</span>
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                    scan.prediction === 'Normal' ? 'bg-green-900/50 text-green-400' :
-                    scan.prediction.includes('Bacterial') ? 'bg-red-900/50 text-red-400' :
-                    'bg-orange-900/50 text-orange-400'
-                  }`}>
-                    {scan.prediction}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-3 text-xs">
-                  <div className="bg-gray-900/50 p-2 rounded">
-                    <span className="block text-gray-500 mb-1">Normal</span>
-                    <span className="text-gray-300 font-semibold">{scan.normal_score?.toFixed(1)}%</span>
-                  </div>
-                  <div className="bg-gray-900/50 p-2 rounded">
-                    <span className="block text-gray-500 mb-1">Bacterial</span>
-                    <span className="text-gray-300 font-semibold">{scan.bacterial_score?.toFixed(1)}%</span>
-                  </div>
-                  <div className="bg-gray-900/50 p-2 rounded">
-                    <span className="block text-gray-500 mb-1">Viral</span>
-                    <span className="text-gray-300 font-semibold">{scan.viral_score?.toFixed(1)}%</span>
-                  </div>
-                </div>
-                {index === 0 && (
-                  <span className="absolute top-4 right-4 text-xs text-blue-400 font-medium bg-blue-900/20 px-2 py-0.5 rounded">
-                    Latest
+      <div className="mt-8 overflow-hidden rounded-xl bg-gray-900 border border-gray-700 shadow-xl">
+  <table className="w-full text-sm text-left" style={{ tableLayout: 'fixed', width: '100%', borderCollapse: 'collapse' }}>
+    {/* Explicit Column Width Allocations */}
+    <colgroup>
+      <col style={{ width: '8%' }} />   {/* Sr. No */}
+      <col style={{ width: '22%' }} />  {/* Patient Name */}
+      <col style={{ width: '15%' }} />  {/* Patient ID */}
+      <col style={{ width: '20%' }} />  {/* Date */}
+      <col style={{ width: '15%' }} />  {/* Time */}
+      <col style={{ width: '20%' }} />  {/* Final Decision */}
+    </colgroup>
+    
+    <thead>
+      <tr className="bg-gray-800 text-gray-300 text-xs uppercase font-bold tracking-wider" style={{ borderBottom: '2px solid #4b5563' }}>
+        <th className="px-3 py-3 text-center" style={{ borderRight: '1px solid #4b5563' }}>Sr. No</th>
+        <th className="px-4 py-3 text-left" style={{ borderRight: '1px solid #4b5563' }}>Patient Name</th>
+        <th className="px-4 py-3 text-center" style={{ borderRight: '1px solid #4b5563' }}>Patient ID</th>
+        <th className="px-4 py-3 text-left" style={{ borderRight: '1px solid #4b5563' }}>Date</th>
+        <th className="px-4 py-3 text-left" style={{ borderRight: '1px solid #4b5563' }}>Time</th>
+        <th className="px-4 py-3 text-center">Final Decision</th>
+      </tr>
+    </thead>
+    <tbody>
+      {pageItems.map((scan, idx) => {
+        const final = getFinalDecision(scan.prediction);
+        const isLatest = (startIdx + idx) === 0;
+        return (
+          <tr 
+            key={scan.scan_id} 
+            className="transition-colors hover:bg-gray-800/50 text-gray-200"
+            style={{ 
+              borderBottom: '1px solid #374151',
+              backgroundColor: isLatest ? 'rgba(30, 58, 138, 0.2)' : 'transparent' 
+            }}
+          >
+            <td className="py-4 text-center font-medium text-gray-500" style={{ borderRight: '1px solid #374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {startIdx + idx + 1}
+            </td>
+            <td className="py-4 px-4 font-semibold text-gray-200" style={{ borderRight: '1px solid #374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {patientName}
+            </td>
+            <td className="py-4 px-4 text-gray-400 font-mono text-center" style={{ borderRight: '1px solid #374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {patientId}
+            </td>
+            <td className="py-4 px-4 text-gray-300 text-left" style={{ borderRight: '1px solid #374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {formatDate(scan.scan_date)}
+            </td>
+            <td className="py-4 px-4 text-gray-400 text-left" style={{ borderRight: '1px solid #374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {formatTime(scan.scan_date)}
+            </td>
+            <td className="py-4 px-4 text-center">
+              <div className="flex items-center justify-center gap-2">
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                  final === 'Normal' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+                  final.includes('Bacterial') ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                  'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                }`}>
+                  {final}
+                </span>
+                {isLatest && (
+                  <span className="px-1.5 py-0.5 text-[9px] uppercase tracking-wider bg-blue-500 text-white rounded font-black shadow-sm shrink-0">
+                   - {" "} Latest
                   </span>
                 )}
               </div>
-            </div>
-          ))}
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</div>
+
+      {/* Pagination arrows */}
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-600">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+            disabled={currentPage === 0}
+            className={`px-4 py-2 text-sm font-medium rounded-lg ${
+              currentPage === 0
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            ← Previous
+          </button>
+          <span className="text-gray-400 text-sm">
+            Page {currentPage + 1} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={currentPage >= totalPages - 1}
+            className={`px-4 py-2 text-sm font-medium rounded-lg ${
+              currentPage >= totalPages - 1
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            Next →
+          </button>
         </div>
-      </div>
-      
-      <div className="mt-4 p-3 bg-blue-900/20 border border-blue-800/30 rounded-lg">
-        <p className="text-xs text-blue-300/80 text-center">
-          <span className="font-semibold">Clinical Note:</span> Timeline shows progression from most recent (top) to oldest (bottom). Compare confidence trends to assess improvement.
-        </p>
-      </div>
+      )}
     </div>
   );
 };
@@ -320,9 +388,14 @@ const handleFileSelect = useCallback((file: File) => {
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Analysis failed');
+       if (!response.ok) {
+        const errData = await response.json();
+        // Captures any explicit error message sent from our FastAPI backend 
+        if (errData.detail) {
+          setPredictionResult({ error: errData.detail });
+          return; // Exits early safely so it doesn't drop into the generic catch text
+        }
+        throw new Error('Analysis failed');
       }
 
       const data = await response.json();
@@ -565,9 +638,9 @@ const handleFileSelect = useCallback((file: File) => {
 )}
           
           {/* NEW: Patient Timeline */}
-          {scanHistory.length > 1 && (
-            <PatientTimeline history={scanHistory} patientName={patientName} />
-          )}
+          {scanHistory.length > 0 && (
+  <PatientTimeline history={scanHistory} patientName={patientName} patientId={patientId} />
+)}
         </div>
       )}
     </main>
