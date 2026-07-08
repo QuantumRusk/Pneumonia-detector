@@ -10,6 +10,7 @@ from typing import List, Dict
 from datetime import datetime
 import os
 import numpy as np
+import cv2
 
 # --- 1. NEW IMPORTS for Grad-CAM and Static Files ---
 from fastapi.staticfiles import StaticFiles
@@ -17,6 +18,37 @@ from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image
 
+# ... after all imports ...
+
+# --- NEW: X-Ray Validation Helper Function ---
+def is_valid_xray(image_bytes: bytes) -> bool:
+    """
+    Validates that an uploaded image is likely a grayscale chest X-ray.
+    Chest X-rays have very low color saturation (<12).
+    Returns True if valid, False if it appears to be a color photo.
+    """
+    try:
+        # Decode image to numpy array
+        np_arr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        
+        if img is None:
+            return False  # Could not decode image
+        
+        # Convert BGR (OpenCV default) to HSV color space
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        
+        # Split channels and calculate mean saturation (S channel)
+        _, s_channel, _ = cv2.split(hsv)
+        mean_saturation = np.mean(s_channel)
+        
+        # Grayscale X-rays have very low saturation
+        # Threshold of 12.0 filters out most color photos
+        return mean_saturation < 12.0
+    
+    except Exception as e:
+        print(f"Error validating X-ray: {e}")
+        return False
 # -------------------------------
 # App setup
 # -------------------------------
@@ -106,25 +138,30 @@ async def predict(
     patient_id: str = Form(...)
 ):
     contents = await file.read()
+
+    # --- NEW: Validate that the image is a chest X-ray (grayscale) ---
+    if not is_valid_xray(contents):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type. Please upload a chest X-ray image only."
+        )
     image = Image.open(io.BytesIO(contents)).convert("RGB")
 
-    # ████████████████████████████████████████████████
-    # --- Duplicate Patient ID / Name Mismatch Check ---
-    # ████████████████████████████████████████████████
+   # ==========================================================
+    # --- Strict Duplicate Patient ID Lockdown ---
+    # ==========================================================
     conn = get_db_connection()
     existing = conn.execute(
-        "SELECT patient_name FROM scans WHERE patient_id = ?",
+        "SELECT patient_id FROM scans WHERE patient_id = ?",
         (patient_id,)
     ).fetchone()
     conn.close()
 
     if existing:
-        stored_name = existing["patient_name"]
-        if patient_name.strip().lower() != stored_name.strip().lower():
-            raise HTTPException(
-                status_code=400,
-                detail="Patient ID already assigned to a different patient name."
-            )
+        raise HTTPException(
+            status_code=400,
+            detail="Patient ID already exists. Cannot create a duplicate record."
+        )
     # ████████████████████████████████████████████████
     
     # Preprocess image for the model

@@ -108,6 +108,8 @@ interface ScanHistoryItem {
   normal_score: number;
   bacterial_score: number;
   viral_score: number;
+  patient_name?: string;  // <-- Added this to fix the typescript error
+  patient_id?: string;
 }
 
 interface PatientTimelineProps {
@@ -139,8 +141,18 @@ const PatientTimeline: React.FC<PatientTimelineProps> = ({ history, patientName,
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-  const formatTime = (dateString: string) =>
-    new Date(dateString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const formatTime = (dateString: string) => {
+    // If the backend string doesn't specify a timezone offset, append 'Z' to treat it as UTC
+    const standardizedDate = dateString.endsWith('Z') || dateString.includes('+') 
+      ? dateString 
+      : `${dateString}Z`;
+      
+    return new Date(standardizedDate).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      hour12: true 
+    });
+  };
 
   // Slice the history array for current page
   const startIdx = currentPage * itemsPerPage;
@@ -150,7 +162,7 @@ const PatientTimeline: React.FC<PatientTimelineProps> = ({ history, patientName,
     <div className="mt-8 p-6 bg-gray-800/50 rounded-2xl border border-gray-700 animate-fadeIn">
       <div className="mb-4 p-3 bg-blue-900/20 border border-blue-800/30 rounded-lg">
         <p className="text-sm text-blue-300/80 text-center">
-          <span className="font-semibold">Patient {patientName}</span>’s first scan was performed on{' '}
+          <span className="font-semibold">Patient {oldestScan.patient_name || patientName}</span>’s first scan was performed on{' '}
           <span className="font-semibold text-white">{oldestDateTime}</span>
         </p>
       </div>
@@ -193,12 +205,17 @@ const PatientTimeline: React.FC<PatientTimelineProps> = ({ history, patientName,
             <td className="py-4 text-center font-medium text-gray-500" style={{ borderRight: '1px solid #374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {startIdx + idx + 1}
             </td>
+            
+            {/* FIXED: Now reads the specific name saved in this history row log */}
             <td className="py-4 px-4 font-semibold text-gray-200" style={{ borderRight: '1px solid #374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {patientName}
+              {scan.patient_name || patientName}
             </td>
+            
+            {/* FIXED: Now reads the specific ID saved in this history row log */}
             <td className="py-4 px-4 text-gray-400 font-mono text-center" style={{ borderRight: '1px solid #374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {patientId}
+              {scan.patient_id || patientId}
             </td>
+            
             <td className="py-4 px-4 text-gray-300 text-left" style={{ borderRight: '1px solid #374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {formatDate(scan.scan_date)}
             </td>
@@ -302,7 +319,11 @@ export default function Home() {
   const [patientId, setPatientId] = useState('');
   const [scanHistory, setScanHistory] = useState<ScanHistoryItem[]>([]);
 // ... existing state variables ...
-  
+  const resetAnalysisStates = () => {
+  setPredictionResult(null);         // clear old diagnostic result
+  setViewMode('original');           // reset image viewer toggle
+  setOriginalImageBase64(null);      // clear base64 image used for PDF & viewer
+};
 
   // NEW: Add these for the image viewer
   const [viewMode, setViewMode] = useState<'original' | 'heatmap'>('original');
@@ -314,7 +335,16 @@ export default function Home() {
   useEffect(() => {
     setMounted(true);
   }, []);
-
+  
+  useEffect(() => {
+  // When the ID changes we flush everything and try to get a fresh history
+  resetAnalysisStates();
+  if (patientId) {
+    fetchPatientHistory(patientId);
+  } else {
+    setScanHistory([]);   // clear history when ID is empty
+  }
+}, [patientId]);
   
 
   // NEW: Fetch patient history
@@ -334,6 +364,7 @@ export default function Home() {
   }, []);
 
   const handleCapture = useCallback((file: File) => {
+  resetAnalysisStates();
   setSelectedImage(file);
   setShowCamera(false);
   setPredictionResult(null);
@@ -344,6 +375,7 @@ export default function Home() {
 }, []);
 
 const handleFileSelect = useCallback((file: File) => {
+  resetAnalysisStates();
   setSelectedImage(file);
   setPredictionResult(null);
   const reader = new FileReader();
@@ -457,7 +489,9 @@ const handleFileSelect = useCallback((file: File) => {
             <input
               type="text"
               value={patientName}
-              onChange={(e) => setPatientName(e.target.value)}
+              onChange={(e) => {setPatientName(e.target.value);
+                resetAnalysisStates();
+              }}
               placeholder="e.g., John Doe"
               className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
             />
@@ -467,7 +501,9 @@ const handleFileSelect = useCallback((file: File) => {
             <input
               type="text"
               value={patientId}
-              onChange={(e) => setPatientId(e.target.value)}
+              onChange={(e) => {setPatientId(e.target.value);
+                resetAnalysisStates();
+              }}
               placeholder="e.g., P12345"
               className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
             />
@@ -476,14 +512,14 @@ const handleFileSelect = useCallback((file: File) => {
       </div>
 
       {mobileDevice ? (
-        <div className="w-full max-w-md flex flex-col gap-6 items-center">
-          <p className="text-gray-400 text-center mb-2">Choose a method to upload X-ray</p>
+        <div className="w-full max-w-md flex flex-col gap-3 items-center">
+          <p className="text-gray-400 text-center text-sm mb-1">Choose a method to upload X-ray</p>
 
           <button
             onClick={() => setShowCamera(true)}
-            className="w-full px-8 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium text-lg shadow-lg flex items-center justify-center gap-3"
+            className="w-48 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium text-sm shadow-md flex items-center justify-center gap-2"
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
@@ -492,9 +528,9 @@ const handleFileSelect = useCallback((file: File) => {
 
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="w-full px-8 py-4 bg-gray-700 text-white rounded-xl hover:bg-gray-600 transition-colors font-medium text-lg shadow-lg flex items-center justify-center gap-3"
+            className="w-48 px-4 py-2 bg-gray-700 text-white rounded-xl hover:bg-gray-600 transition-colors font-medium text-sm shadow-md flex items-center justify-center gap-2"
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             Choose from Gallery
@@ -502,26 +538,33 @@ const handleFileSelect = useCallback((file: File) => {
 
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleGalleryChange} className="hidden" />
         </div>
-      ) : desktopDevice ? (
-        <div className="w-full max-w-lg flex flex-col items-center">
+     ) : desktopDevice ? (
+        <div className="w-full flex justify-center items-center">
           <div
             {...getRootProps()}
-            className={`w-full p-12 border-2 border-dashed rounded-2xl text-center cursor-pointer transition-colors
-              ${isDragActive ? 'border-blue-400 bg-blue-400/10' : 'border-gray-600 bg-gray-900/50 hover:border-blue-400 hover:bg-gray-800'}`}
+            style={{
+              width: '220px',          // Matches the exact width of your Download Button
+              height: '140px',         // Compact height box
+              border: '2px dashed #4b5563',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(17, 24, 39, 0.5)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              padding: '12px',
+              transition: 'all 0.2s ease'
+            }}
+            className="hover:border-blue-500 hover:bg-gray-800/50"
           >
             <input {...getInputProps()} />
-            <div className="flex flex-col items-center gap-4">
-              {isDragActive ? (
-                <p className="text-blue-400 text-lg font-medium">Drop your X-ray image here...</p>
-              ) : (
-                <>
-                  <svg className="w-12 h-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <p className="text-gray-300 text-lg font-medium">Drag & drop your X-ray image here</p>
-                  <p className="text-gray-500 text-sm">or click to browse from your files</p>
-                </>
-              )}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+              <svg style={{ width: '24px', height: '24px', color: '#6b7280', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p style={{ color: '#d1d5db', fontSize: '13px', fontWeight: '500', margin: 0 }}>Drag & drop X-ray</p>
+              <p style={{ color: '#9ca3af', fontSize: '11px', margin: 0 }}>or click to browse</p>
             </div>
           </div>
         </div>
@@ -532,7 +575,7 @@ const handleFileSelect = useCallback((file: File) => {
       {showCamera && <CameraCapture onCapture={handleCapture} onClose={() => setShowCamera(false)} />}
 
       {selectedImage && (
-        <div className="mt-8 w-full max-w-md">
+        <div className="mt-8 w-full max-w-sm">
           <div className="p-4 bg-gray-800/50 border border-gray-700 rounded-xl mb-4">
             <p className="text-green-400 text-center text-sm">
               ✓ Ready: <span className="text-gray-300">{selectedImage.name}</span>
@@ -542,7 +585,7 @@ const handleFileSelect = useCallback((file: File) => {
           <button
             onClick={handleAnalyze}
             disabled={loading || !patientName || !patientId}
-            className={`w-full py-3 rounded-xl font-medium text-base shadow-lg transition-colors flex items-center justify-center gap-2
+                className={`w-full py-2.5 rounded-xl font-medium text-base shadow-lg transition-colors flex items-center justify-center gap-2
               ${loading || !patientName || !patientId ? 'bg-gray-700 cursor-not-allowed text-gray-400' : 'bg-purple-600 hover:bg-purple-700 text-white'}`}
           >
             {loading ? (
@@ -564,8 +607,9 @@ const handleFileSelect = useCallback((file: File) => {
           </button>
 
           {/* NEW: Image Viewer with Original/Heatmap Toggle */}
+          {/* NEW: Image Viewer with Original/Heatmap Toggle */}
           {predictionResult && predictionResult.heatmap_url && originalImageBase64 && (
-            <div className="bg-gray-800 rounded-2xl border border-gray-700 p-4 mt-6 animate-fadeIn">
+            <div className="bg-gray-800 rounded-2xl border border-gray-700 p-4 mt-6 animate-fadeIn w-full flex flex-col items-center">
               <div className="flex justify-center gap-2 mb-4">
                 <button
                   onClick={() => setViewMode('original')}
@@ -589,53 +633,60 @@ const handleFileSelect = useCallback((file: File) => {
                 </button>
               </div>
 
-              <div className="relative aspect-square w-full bg-black rounded-lg overflow-hidden">
-                {/* Use a standard `img` tag for external/local blob URLs */}
+              {/* Natural flex block wrapper */}
+              <div style={{ display: 'flex', width: '100%', justifyContent: 'center' }}>
                 <img
                   src={
-  viewMode === 'original'
-    ? originalImageBase64
-    : predictionResult.heatmap_url?.startsWith('http')
-      ? predictionResult.heatmap_url
-      : `http://localhost:8000${predictionResult.heatmap_url}`
-}
+                    viewMode === 'original'
+                      ? originalImageBase64
+                      : predictionResult.heatmap_url?.startsWith('http')
+                        ? predictionResult.heatmap_url
+                        : `http://localhost:8000${predictionResult.heatmap_url}`
+                  }
                   alt={viewMode === 'original' ? 'Original X-Ray' : 'AI Heatmap'}
-                  className="w-full h-full object-contain"
+                  style={{
+                    width: '220px',          // Forces image width profile to match the buttons
+                    maxHeight: '260px',      // Caps total vertical space
+                    objectFit: 'contain',    // Fits without cropping or overflowing
+                    borderRadius: '8px',
+                    border: '1px solid #374151',
+                    backgroundColor: '#000000',
+                    display: 'block'
+                  }}
                 />
               </div>
-               {viewMode === 'heatmap' && (
-              <div className="mt-3 px-3 py-2 bg-blue-900/20 border border-blue-800/30 rounded-lg">
-                <p className="text-xs text-blue-300/80 text-center leading-relaxed">
-                  <span className="font-semibold">🔬 AI Focus Analysis:</span>{' '}
-                  <span className="text-red-400 font-medium">Red/Orange</span> regions indicate the lung areas the AI considered most important for its diagnosis.{' '}
-                  <span className="text-blue-400 font-medium">Blue</span> regions represent areas the model mostly ignored.
-                </p>
-              </div>
-            )}
-            </div>
-             
 
+              {viewMode === 'heatmap' && (
+                <div className="mt-3 px-3 py-2 bg-blue-900/20 border border-blue-800/30 rounded-lg max-w-xs">
+                  <p className="text-[11px] text-blue-300/80 text-center leading-relaxed m-0">
+                    <span className="font-semibold">🔬 AI Focus Analysis:</span>{' '}
+                    <span className="text-red-400 font-medium">Red/Orange</span> regions indicate high diagnostic focus.
+                  </p>
+                </div>
+              )}
+            </div>
           )}
 
           {predictionResult && !loading && <ResultsCard result={predictionResult} />}
 
                     {/* NEW: PDF Report Download Button */}
           {/* NEW: PDF Report Download Button (Dynamically Loaded) */}
-{hasValidPrediction && !loading && confidenceScores && (
-  <div className="mt-6">
-    <DynamicDownloadButton
-      patientName={patientName}
-      patientId={patientId}
-      diagnosis={predictionResult.prediction || 'Unknown'}
-      confidenceScores={confidenceScores}
-      date={new Date().toLocaleString()}
-      originalImageURL={originalImageBase64  ?? undefined}          // <-- changed
-  heatmapURL={predictionResult.heatmap_url?.startsWith('http') 
-    ? predictionResult.heatmap_url 
-    : `http://localhost:8000${predictionResult.heatmap_url}`}
-    />
-  </div>
-)}
+{/* NEW: PDF Report Download Button (Dynamically Loaded) */}
+          {hasValidPrediction && !loading && confidenceScores && (
+            <div className="mt-6 w-full flex justify-center items-center">
+              <DynamicDownloadButton
+                patientName={patientName}
+                patientId={patientId}
+                diagnosis={predictionResult.prediction || 'Unknown'}
+                confidenceScores={confidenceScores}
+                date={new Date().toLocaleString()}
+                originalImageURL={originalImageBase64  ?? undefined}          
+                heatmapURL={predictionResult.heatmap_url?.startsWith('http') 
+                  ? predictionResult.heatmap_url 
+                  : `http://localhost:8000${predictionResult.heatmap_url}`}
+              />
+            </div>
+          )}
           
           {/* NEW: Patient Timeline */}
           {scanHistory.length > 0 && (
