@@ -150,18 +150,22 @@ async def predict(
    # ==========================================================
     # --- Strict Duplicate Patient ID Lockdown ---
     # ==========================================================
+    # Allow multiple scans for the SAME person, but block if someone else tries to use the ID
     conn = get_db_connection()
     existing = conn.execute(
-        "SELECT patient_id FROM scans WHERE patient_id = ?",
+        "SELECT patient_name FROM scans WHERE patient_id = ?",
         (patient_id,)
     ).fetchone()
     conn.close()
 
-    if existing:
-        raise HTTPException(
-            status_code=400,
-            detail="Patient ID already exists. Cannot create a duplicate record."
-        )
+    if existing is not None:
+        stored_name = existing["patient_name"]
+        # If the typing name doesn't match the historical name in the database, lock it down
+        if patient_name.strip().lower() != stored_name.strip().lower():
+            raise HTTPException(
+                status_code=400,
+                detail="Patient ID already assigned to a different patient name."
+            )
     # ████████████████████████████████████████████████
     
     # Preprocess image for the model
@@ -202,15 +206,21 @@ async def predict(
     Image.fromarray(cam_image).save(heatmap_path)
 
     # Create the public URL for the heatmap
+        # Create the public URL for the heatmap
     heatmap_url = f"http://localhost:8000/static/{heatmap_filename}"
 
-    # Calculate scores and labels
+    # --- CORRECTED: Dynamic probability extraction & label mapping ---
+    # probabilities already computed above via torch.softmax (sums to 100%)
     normal_conf = round(probabilities[0].item() * 100, 2)
     pneumonia_conf = round(probabilities[1].item() * 100, 2)
+
+    # Map argmax index to correct string (binary model: 0=Normal, 1=Pneumonia)
+    predicted_idx = torch.argmax(probabilities).item()
+    prediction_label = "Normal" if predicted_idx == 0 else "Pneumonia"
+
+    # Even split of pneumonia confidence for frontend 3-class format
     bacterial_conf = round(pneumonia_conf / 2, 2)
     viral_conf = round(pneumonia_conf / 2, 2)
-
-    prediction_label = "Normal" if normal_conf >= pneumonia_conf else "Pneumonia"
     
     # Save to Database
     conn = get_db_connection()

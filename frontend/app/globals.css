@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Your custom animation */
+/* Existing custom animation */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -14,4 +14,44 @@
 
 .animate-fadeIn {
   animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* ─────────────────────────────────────────────────────────
+   PREMIUM DIAGNOSTIC SCAN LINE
+   Sweeps top-to-bottom inside any relatively positioned parent.
+   Used inside the heatmap viewer and empty diagnostic panel.
+   ───────────────────────────────────────────────────────── */
+@keyframes scanLine {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(1600%); opacity: 0; }
+}
+
+.scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(56, 189, 248, 0)   5%,
+    rgba(56, 189, 248, 0.6) 45%,
+    rgba(125, 211, 252, 0.9) 50%,
+    rgba(56, 189, 248, 0.6) 55%,
+    rgba(56, 189, 248, 0)   95%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 12px rgba(56, 189, 248, 0.55),
+    0 0 24px rgba(56, 189, 248, 0.25);
+  animation: scanLine 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.scan-line-slow {
+  animation-duration: 5s;
 }
