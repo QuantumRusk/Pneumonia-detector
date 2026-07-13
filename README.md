@@ -1,74 +1,113 @@
-Ah, I see exactly what happened! GitHub's markdown renderer got confused because the code blocks were split up, making the layout look broken on your repository page.
-
-Let's fix that. Here is the entire markdown content formatted into **one single, unbroken code block**. You can copy this whole block and paste it directly into your `README.md` file, and it will render perfectly on GitHub.
-
-```markdown
 # Precision Screening for Pulmonary Infections (AI Thoracic Evaluation System)
 
-An advanced, clinical-grade deep learning dashboard designed to instantly classify chest X-rays into Normal, Bacterial, and Viral pneumonia vectors. Built with an optimized dual-column React workspace, the system features localized feature activation mapping (Grad-CAM), real-time latency monitoring, and an active frontend clinical safety threshold override layer.
+An advanced, clinical-grade deep learning dashboard designed to instantly classify chest X-rays into **Normal**, **Bacterial**, and **Viral** pneumonia vectors. Built with an optimized dual-column React workspace, the system features localized feature activation mapping (Grad-CAM), real-time latency monitoring, and an active frontend clinical safety threshold override layer.
 
 ---
 
-## 🚀 Core Features
+## > Core Features
 
-* **3-Class Tensor Classification:** Goes beyond basic binary detection to separate healthy lung fields from dense localized bacterial consolidations and diffuse viral interstitial shadows.
-* **Grad-CAM Focus Heatmaps:** Generates an immediate visual transparency layer over the radiographic film, exposing exactly which pixel regions triggered the neural network's structural assessment.
-* **Clinical Sensitivity Thresholds:** Integrates a frontend safety tier allowing clinicians to toggle between standard baselines, high-sensitivity emergency room triage settings, and strict confirmation parameters.
-* **Dynamic Performance Tracking:** Employs high-resolution browser performance metrics to track and display real-time network inference execution speeds in milliseconds.
-* **Automated Patient Logging & Documentation:** Features an active analytical history timeline tracking sequential patient data states alongside structured, downloadable PDF clinical reports.
+### 3-Class Tensor Classification
+- Goes beyond basic binary detection to separate healthy lung fields from dense localized bacterial consolidations and diffuse viral interstitial shadows.
 
----
+### Grad-CAM Focus Heatmaps
+- Generates an immediate visual transparency layer over the radiographic film, exposing exactly which pixel regions triggered the neural network's structural assessment.
 
-## 🛠️ Tech Stack
+### Clinical Sensitivity Thresholds
+- Integrates a frontend safety tier allowing clinicians to toggle between:
+  - Standard baselines
+  - High-sensitivity emergency room triage settings
+  - Strict confirmation parameters
 
-* **Frontend UI/UX:** React 18, TypeScript, Tailwind CSS, Glassmorphism design system.
-* **PDF Generation:** Next.js Dynamic Client Engine (`PdfDownloader`).
-* **Backend Core Engine:** FastAPI (Python), Uvicorn asynchronous server routing.
-* **Deep Learning Architecture:** Multi-class convolutional neural networks, PyTorch / TensorFlow execution layers.
+### Dynamic Performance Tracking
+- Employs high-resolution browser performance metrics to track and display real-time network inference execution speeds in milliseconds.
 
----
-
-## 📐 System Architecture & Layout
-
-The terminal workspace is optimized into a data-dense, responsive multi-panel environment:
-1. **Left Control Column:** Patient session credentials, metadata configurations, AI sensitivity state controls, and drag-and-drop DICOM/PNG/JPG file ingestion fields.
-2. **Right Workspace Column:** Live inference console housing the dual-state image/heatmap toggles, multi-class confidence progress metrics, and localized clinical prognosis warning blocks.
-3. **Bottom Logs Panel:** Full-width analytical patient database grid displaying historical logs, sequential categorization records, and active "Latest Scan" status monitoring.
+### Automated Patient Logging & Documentation
+- Features an active analytical history timeline tracking sequential patient data states alongside structured, downloadable PDF clinical reports.
 
 ---
 
-## 📥 Local Installation & Verification
+## > Tech Stack
 
-### 1. Prerequisites
-Ensure you have Node.js (v18+) and Python (3.9+) installed on your machine.
+| Component | Technology |
+|-----------|------------|
+| **Frontend UI/UX** | React 18, TypeScript, Tailwind CSS, Glassmorphism Design System |
+| **PDF Generation** | Next.js Dynamic Client Engine (`PdfDownloader`) |
+| **Backend Core Engine** | FastAPI (Python), Uvicorn Asynchronous Server Routing |
+| **Deep Learning Architecture** | Multi-class Convolutional Neural Networks, PyTorch / TensorFlow Execution Layers |
 
-### 2. Backend Setup
+---
+
+## > System Architecture & Layout
+
+The terminal workspace is optimized into a data-dense, responsive multi-panel environment.
+
+### Left Control Column
+- Patient session credentials
+- Metadata configurations
+- AI sensitivity state controls
+- Drag-and-drop DICOM/PNG/JPG file ingestion fields
+
+### Right Workspace Column
+- Live inference console
+- Dual-state image / heatmap toggles
+- Multi-class confidence progress metrics
+- Localized clinical prognosis warning blocks
+
+### Bottom Logs Panel
+- Full-width analytical patient database grid
+- Historical logs
+- Sequential categorization records
+- Active **Latest Scan** status monitoring
+
+---
+
+# 📥 Local Installation & Verification
+
+## 1. Prerequisites
+
+Ensure you have the following installed:
+
+- **Node.js v18+**
+- **Python 3.9+**
+
+---
+
+## 2. Backend Setup
+
 ```bash
 cd backend
 pip install -r requirements.txt
 python main.py
-
 ```
 
-*The API layer will initialize and listen on `http://localhost:8000`.*
+The API layer will initialize and listen on:
 
-### 3. Frontend Setup
+```
+http://localhost:8000
+```
+
+---
+
+## 3. Frontend Setup
 
 ```bash
 cd frontend
 npm install
 npm run dev
-
 ```
 
-*The interface layer will compile locally on `http://localhost:3000`.*
+The interface layer will compile locally on:
+
+```
+http://localhost:3000
+```
 
 ---
 
 ## ⚖️ Legal & Medical Disclaimer
 
-This system is an AI-assisted screening prototype developed exclusively for evaluation and hackathon demonstration purposes. The multi-class predictive scores, automated threshold alterations, and Grad-CAM focus metrics generated by this console are intended to support investigative clinical triage workflows and do not constitute a definitive medical diagnosis. All diagnostic outputs must be strictly reviewed, cross-referenced, and authenticated by a licensed radiologist or certified healthcare practitioner prior to any therapeutic clinical intervention.
-
-```
-
-```
+> **This system is an AI-assisted screening prototype developed exclusively for evaluation and hackathon demonstration purposes.**
+>
+> The multi-class predictive scores, automated threshold alterations, and Grad-CAM focus metrics generated by this console are intended to support investigative clinical triage workflows and **do not constitute a definitive medical diagnosis**.
+>
+> All diagnostic outputs must be **strictly reviewed, cross-referenced, and authenticated by a licensed radiologist or certified healthcare practitioner** prior to any therapeutic clinical intervention.
