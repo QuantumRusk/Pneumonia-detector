@@ -1,8 +1,3 @@
-Here is a clean, professional, and dense `README.md` file tailored specifically for your project. It highlights the premium architecture, the clinical features you just built, and the exact project scope to ensure the judges see the technical depth of your submission instantly.
-
----
-
-# 📋 Copy/Paste This Into Your `README.md` File
 
 ```markdown
 # Precision Screening for Pulmonary Infections (AI Thoracic Evaluation System)
@@ -11,7 +6,7 @@ An advanced, clinical-grade deep learning dashboard designed to instantly classi
 
 ---
 
-## 🚀 Core Features
+## > Core Features
 
 * **3-Class Tensor Classification:** Goes beyond basic binary detection to separate healthy lung fields from dense localized bacterial consolidations and diffuse viral interstitial shadows.
 * **Grad-CAM Focus Heatmaps:** Generates an immediate visual transparency layer over the radiographic film, exposing exactly which pixel regions triggered the neural network's structural assessment.
@@ -21,7 +16,7 @@ An advanced, clinical-grade deep learning dashboard designed to instantly classi
 
 ---
 
-## 🛠️ Tech Stack
+## > Tech Stack
 
 * **Frontend UI/UX:** React 18, TypeScript, Tailwind CSS, Glassmorphism design system.
 * **PDF Generation:** Next.js Dynamic Client Engine (`PdfDownloader`).
@@ -30,7 +25,7 @@ An advanced, clinical-grade deep learning dashboard designed to instantly classi
 
 ---
 
-## 📐 System Architecture & Layout
+## > System Architecture & Layout
 
 The terminal workspace is optimized into a data-dense, responsive multi-panel environment:
 1.  **Left Control Column:** Patient session credentials, metadata configurations, AI sensitivity state controls, and drag-and-drop DICOM/PNG/JPG file ingestion fields.
@@ -42,7 +37,11 @@ The terminal workspace is optimized into a data-dense, responsive multi-panel en
 ## 📥 Local Installation & Verification
 
 ### 1. Prerequisites
+```bash
 Ensure you have Node.js (v18+) and Python (3.9+) installed on your machine.
+
+```
+*Two Setup needed here.*
 
 ### 2. Backend Setup
 ```bash
