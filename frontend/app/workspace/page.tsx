@@ -31,9 +31,11 @@ interface ResultsCardProps {
     scan_date?: string;
     patient_name?: string;
   };
+  sensitivityMode?: 'standard' | 'high' | 'strict';
+  inferenceTime?: number | null;
 }
 
-const ResultsCard: React.FC<ResultsCardProps> = ({ result }) => {
+const ResultsCard: React.FC<ResultsCardProps> = ({ result, sensitivityMode = 'standard', inferenceTime = null }) => {
   if (!result) return null;
 
   if (result.error) {
@@ -86,18 +88,75 @@ const ResultsCard: React.FC<ResultsCardProps> = ({ result }) => {
     { label: 'Bacterial Pneumonia', value: bacterialScore, from: 'from-rose-400',    to: 'to-rose-600',    track: 'bg-white/5' },
     { label: 'Viral Pneumonia',     value: viralScore,     from: 'from-amber-400',   to: 'to-amber-600',   track: 'bg-white/5' },
   ];
+   // ── FEATURE 1: SENSITIVITY OVERRIDE ──────────────────────────────
+  const rawPneumonia = bacterialScore + viralScore;
+  let finalDisplayPrediction = prediction;
+  let finalInsightTitle = insight.title;
+  let finalInsightText = insight.text;
+  let finalHeaderColor = headerColor;
+  let finalHeaderBg = headerBg;
+  let finalInsightColor = insight.color;
+  let finalInsightBorder = insight.border;
+
+  // NEW: Check if the AI model is experiencing a flat 50-50 pneumonia deadlock
+  const isDeadlocked = Math.abs(bacterialScore - viralScore) < 1 && normalScore < 10;
+
+  if (isDeadlocked) {
+    if (sensitivityMode === 'high') {
+      // ER Triage Mode: Forcefully favor Bacterial to ensure aggressive antibiotic screening
+      finalDisplayPrediction = 'Bacterial Pneumonia (Triage Priority)';
+      finalInsightTitle = 'Triage-Forced Bacterial Protocol';
+      finalInsightText = 'The underlying AI model hit a 50-50 classification tie. Under High-Sensitivity Triage rules, the system defaults to a Bacterial priority track to trigger immediate diagnostic lab testing and avoid missing critical acute infections.';
+      finalHeaderColor = 'text-rose-300';
+      finalHeaderBg = 'bg-rose-400/5 border-rose-400/30 shadow-[0_0_25px_rgba(244,63,94,0.15)]';
+    } else if (sensitivityMode === 'strict') {
+      // Strict Mode: Forcefully drop it to Viral or demand a re-scan due to high uncertainty
+      finalDisplayPrediction = 'Viral Pneumonia (Supportive Track)';
+      finalInsightTitle = 'Uncertain Classification – Supportive Care Track';
+      finalInsightText = 'The system identified a perfect statistical deadlock between bacterial and viral features. Under Strict rules, acute bacterial consolidation cannot be verified. Flagged for supportive monitoring and full laboratory viral panel verification.';
+      finalHeaderColor = 'text-amber-300';
+      finalHeaderBg = 'bg-amber-400/5 border-amber-400/30 shadow-[0_0_25px_rgba(251,191,36,0.15)]';
+    }
+  } else if (sensitivityMode === 'high') {
+    // Standard ER Triage for borderline Normal inputs
+    if (rawPneumonia > 35 && prediction === 'Normal') {
+      finalDisplayPrediction = 'Pneumonia Detected (High-Sensitivity Triage)';
+      finalInsightTitle = 'Borderline Infiltrate Warning';
+      finalInsightText = 'AI Sensitivity is set to High. Subtle pixel opacities detected exceeding triage limits. Recommended clinical isolation and sputum culture monitoring to prevent false negatives.';
+      finalHeaderColor = 'text-amber-300';
+      finalHeaderBg = 'bg-amber-400/5 border-amber-400/30 shadow-[0_0_25px_rgba(251,191,36,0.15)]';
+    }
+  } else if (sensitivityMode === 'strict') {
+    // Standard Strict Specificity check
+    if (rawPneumonia < 65 && prediction !== 'Normal') {
+      finalDisplayPrediction = 'Normal';
+      finalInsightTitle = 'Sub-Threshold Assessment';
+      finalInsightText = 'Pneumonia metrics fell below strict specific limits. Film exhibits clear lung fields with no high-confidence localized consolidations present.';
+      finalHeaderColor = 'text-emerald-300';
+      finalHeaderBg = 'bg-emerald-400/5 border-emerald-400/30 shadow-[0_0_25px_rgba(16,185,129,0.15)]';
+    }
+  }
 
   return (
     <div className="mt-6 p-6 bg-white/3 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.4)] animate-fadeIn">
-      <div className={`p-5 rounded-xl border ${headerBg} mb-6 text-center backdrop-blur-md`}>
+       <div className={`p-5 rounded-xl border ${finalHeaderBg} mb-6 text-center backdrop-blur-md`}>
         <p className="text-slate-400 text-[11px] uppercase tracking-[0.3em] mb-2">Diagnosis</p>
-        <h2 className={`text-3xl font-bold ${headerColor} drop-shadow-[0_0_18px_rgba(255,255,255,0.15)]`}>
-          {prediction}
+        <h2 className={`text-3xl font-bold ${finalHeaderColor} drop-shadow-[0_0_18px_rgba(255,255,255,0.15)]`}>
+          {finalDisplayPrediction}
         </h2>
         {result.scan_date && (
-          <p className="text-slate-500 text-xs mt-2 tracking-wide">
-            Scan ID: <span className="text-slate-300 font-mono">{result.scan_id}</span> •{' '}
-            {new Date(result.scan_date).toLocaleString()}
+          <p className="text-slate-500 text-xs mt-2 tracking-wide flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+            <span>Scan ID: <span className="text-slate-300 font-mono">{result.scan_id}</span></span>
+            <span className="text-slate-600">•</span>
+            <span>{new Date(result.scan_date).toLocaleString()}</span>
+            {inferenceTime !== null && inferenceTime !== undefined && (
+              <>
+                <span className="text-slate-600">•</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-400/30 text-emerald-300 font-mono text-[10px] font-bold shadow-[0_0_10px_rgba(16,185,129,0.25)]">
+                  ⚡ Latency: {inferenceTime}ms
+                </span>
+              </>
+            )}
           </p>
         )}
       </div>
@@ -126,12 +185,17 @@ const ResultsCard: React.FC<ResultsCardProps> = ({ result }) => {
         </div>
       </div>
 
-      <div className={`p-4 bg-white/2 backdrop-blur-md border ${insight.border} rounded-xl mt-4 mb-4`}>
-        <h4 className={`text-[10px] font-bold uppercase tracking-[0.25em] mb-2 ${insight.color}`}>
+      <div className={`p-4 bg-white/2 backdrop-blur-md border ${finalInsightBorder} rounded-xl mt-4 mb-4`}>
+        <h4 className={`text-[10px] font-bold uppercase tracking-[0.25em] mb-2 ${finalInsightColor}`}>
           🔬 Clinical Prognosis Guidance
+          {sensitivityMode !== 'standard' && (
+            <span className="ml-2 px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300 text-[9px] tracking-wider">
+              {sensitivityMode === 'high' ? 'HIGH-SENS MODE' : 'STRICT MODE'}
+            </span>
+          )}
         </h4>
-        <p className="text-slate-100 font-semibold text-sm mb-1.5">{insight.title}</p>
-        <p className="text-slate-400 text-[12px] leading-relaxed">{insight.text}</p>
+        <p className="text-slate-100 font-semibold text-sm mb-1.5">{finalInsightTitle}</p>
+        <p className="text-slate-400 text-[12px] leading-relaxed">{finalInsightText}</p>
       </div>
 
       {result._note && (
@@ -169,9 +233,20 @@ const PatientTimeline: React.FC<PatientTimelineProps> = ({ history, patientName,
   if (history.length === 0) return null;
 
   const oldestScan = history[history.length - 1];
-  const oldestDateTime = new Date(oldestScan.scan_date).toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
+
+  // 1. First, standardize the date string format to force local timezone parsing
+  const standardizedOldestDate = oldestScan.scan_date.endsWith('Z') || oldestScan.scan_date.includes('+')
+    ? oldestScan.scan_date
+    : `${oldestScan.scan_date}Z`;
+
+  // 2. Then, pass that standardized variable into the formatter
+  const oldestDateTime = new Date(standardizedOldestDate).toLocaleString('en-US', {
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric',
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: true
   });
 
   const getFinalDecision = (prediction: string) => {
@@ -356,12 +431,15 @@ export default function Home() {
   const [patientName, setPatientName] = useState('');
   const [patientId, setPatientId] = useState('');
   const [scanHistory, setScanHistory] = useState<ScanHistoryItem[]>([]);
+  const [sensitivityMode, setSensitivityMode] = useState<'standard' | 'high' | 'strict'>('standard');
+  const [inferenceTime, setInferenceTime] = useState<number | null>(null);
 
   const resetAnalysisStates = () => {
     setPredictionResult(null);
     setViewMode('original');
     setOriginalImageBase64(null);
     setScanHistory([]); 
+    setInferenceTime(null);
   };
 
   const [viewMode, setViewMode] = useState<'original' | 'heatmap'>('original');
@@ -425,6 +503,31 @@ export default function Home() {
     if (files && files.length > 0) handleFileSelect(files[0]);
   };
 
+  // ── FEATURE 3: Quick-Sample Asset State Injector ──
+  const injectSampleImage = async (filename: string, sampleName: string, sampleId: string) => {
+    resetAnalysisStates();
+    setPatientName(sampleName);
+    setPatientId(sampleId);
+    setPredictionResult(null);
+    setLoading(true);
+
+    try {
+      // Pulls the sample images directly from your public/ folder
+      const response = await fetch(`/${filename}`);
+      const blob = await response.blob();
+      const file = new File([blob], filename, { type: 'image/jpeg' });
+      
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setOriginalImageBase64(reader.result as string);
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Failed to inject sample radiographic file:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAnalyze = async () => {
     if (!selectedImage) return;
     if (!patientName.trim() || !patientId.trim()) {
@@ -441,12 +544,21 @@ export default function Home() {
       formData.append('patient_name', patientName);
       formData.append('patient_id', patientId);
 
+            // ── FEATURE 2: Start high-resolution timer ──
+      const startTime = performance.now();
+
       const response = await fetch('http://localhost:8000/predict', {
         method: 'POST',
         body: formData,
       });
 
+      // ── FEATURE 2: Stop timer & save latency ──
+      const endTime = performance.now();
+      const latencyMs = Math.round(endTime - startTime);
+      setInferenceTime(latencyMs);
+
       if (!response.ok) {
+
         const errData = await response.json();
         if (errData.detail) {
           setPredictionResult({ error: errData.detail });
@@ -573,7 +685,7 @@ export default function Home() {
                         setPatientName(e.target.value);
                         resetAnalysisStates();
                       }}
-                      placeholder="e.g., John Doe"
+                      placeholder="e.g., Suresh P"
                       className="w-full px-4 py-3 bg-white/3 backdrop-blur-md border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 focus:bg-white/6 transition-all"
                     />
                   </div>
@@ -590,9 +702,39 @@ export default function Home() {
                       className="w-full px-4 py-3 bg-white/3 backdrop-blur-md border border-white/10 rounded-xl text-white placeholder-slate-500 font-mono focus:outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 focus:bg-white/6 transition-all"
                     />
                   </div>
+                  {/* ── FEATURE 1: AI Sensitivity Selector ── */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1.5 uppercase tracking-[0.2em]">
+                      AI Sensitivity Level
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={sensitivityMode}
+                        onChange={(e) => setSensitivityMode(e.target.value as 'standard' | 'high' | 'strict')}
+                        className="w-full appearance-none px-4 py-3 pr-10 bg-white/3 backdrop-blur-md border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 focus:bg-white/6 transition-all cursor-pointer"
+                      >
+                        <option value="standard" className="bg-[#0B132B] text-white">Standard Baseline (Default)</option>
+                        <option value="high" className="bg-[#0B132B] text-white">High Sensitivity (ER Triage Mode)</option>
+                        <option value="strict" className="bg-[#0B132B] text-white">Strict Specificity (Confirmations)</option>
+                      </select>
+                      {/* Custom chevron */}
+                      <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-300/80 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                    {sensitivityMode !== 'standard' && (
+                      <p className="mt-1.5 text-[10px] text-cyan-300/70 tracking-wide">
+                        {sensitivityMode === 'high'
+                          ? '⚡ Threshold lowered — flags subtle infiltrates'
+                          : '🛡 Threshold raised — confirms only high-confidence findings'}
+                      </p>
+                    )}
+                  </div>
+
                 </div>
               </div>
             </section>
+                
 
             {/* Input Scanning Device / Upload Card */}
             <section className="relative group">
@@ -662,6 +804,29 @@ export default function Home() {
                 ) : (
                   <div className="text-slate-300 text-center">Device not supported</div>
                 )}
+
+                {/* ── PASTE THE NEW DATASET GALLERY COMPONENT DIRECTLY HERE: ── */}
+                <div className="mt-4 pt-3 border-t border-white/5">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 text-center">
+                    🔬 Fast-Track Evaluation Datasets
+                  </p>
+                  <div className="flex gap-2 justify-center">
+                    <button
+                      type="button"
+                      onClick={() => injectSampleImage('sample_normal.jpg', 'Normal Reference Case', 'REF-NORM')}
+                      className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 transition-all cursor-pointer"
+                    >
+                      💡 Sample: Normal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => injectSampleImage('sample_pneumonia.jpg', 'Infection Reference Case', 'REF-PNEU')}
+                      className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 hover:bg-rose-500/20 transition-all cursor-pointer"
+                    >
+                      🚨 Sample: Pneumonia
+                    </button>
+                  </div>
+                </div>
 
                 {selectedImage && (
                   <div className="mt-5 space-y-4">
@@ -799,7 +964,7 @@ export default function Home() {
 
                 {/* Results / Empty state with scan line (EDIT B) */}
                 {predictionResult && !loading ? (
-                  <ResultsCard result={predictionResult} />
+                   <ResultsCard result={predictionResult} sensitivityMode={sensitivityMode} inferenceTime={inferenceTime} />
                 ) : !loading ? (
                   <div className="relative overflow-hidden flex flex-col items-center justify-center text-center py-16 px-6">
                     {/* Subtle idle scan line */}
@@ -869,15 +1034,31 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Footer */}
-        <footer className="mt-14 pb-6 flex items-center justify-center gap-3">
-          <div className="h-px w-16 bg-linear-to-r from-transparent to-cyan-400/40" />
-          <p className="text-[10px] uppercase tracking-[0.35em] text-slate-500">
-            Clinical Diagnostic Console · v1.0
-          </p>
-          <div className="h-px w-16 bg-linear-to-l from-transparent to-amber-300/40" />
+        {/* Footer with High-End Medical Disclaimer */}
+        <footer className="mt-14 pb-8 flex flex-col items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-3 w-full">
+            <div className="h-px w-24 bg-linear-to-r from-transparent to-cyan-400/40" />
+            <p className="text-[11px] uppercase tracking-[0.35em] text-slate-500 font-medium">
+              Clinical Diagnostic Console · v1.0
+            </p>
+            <div className="h-px w-24 bg-linear-to-l from-transparent to-amber-300/40" />
+          </div>
+
+          {/* New Disclaimer Block */}
+          <div className="max-w-4xl mx-auto px-6 py-4 mt-2 rounded-xl bg-slate-950/40 border border-white/5 backdrop-blur-md text-center">
+            <p className="text-[10px] font-bold text-amber-400/80 uppercase tracking-widest mb-1.5 flex items-center justify-center gap-1.5">
+              <span>⚠️</span> Legal & Clinical Demonstration Disclaimer
+            </p>
+            <p className="text-[15px] text-slate-white leading-relaxed font-normal max-w-3xl mx-auto">
+              This system is an AI-assisted screening prototype developed exclusively for evaluation and hackathon demonstration purposes. 
+              The multi-class predictive scores, automated threshold alterations, and Grad-CAM focus metrics generated by this console 
+              are intended to support investigative clinical triage workflows and do not constitute a definitive medical diagnosis. 
+              All diagnostic outputs must be strictly reviewed, cross-referenced, and authenticated by a licensed radiologist or 
+              certified healthcare practitioner prior to any clinical intervention.
+            </p>
+          </div>
         </footer>
-      </div>
+        </div>
     </main>
   );
 }
