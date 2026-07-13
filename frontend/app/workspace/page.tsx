@@ -6,7 +6,7 @@ import { useDropzone } from 'react-dropzone';
 import CameraCapture from '../components/CameraCapture';
 import dynamic from 'next/dynamic';
 
-const DynamicDownloadButton = dynamic(
+const DynamicDownloadButton = dynamic<any>(
   () => import('../components/PdfDownloader').then(mod => mod.DownloadReportButton),
   {
     ssr: false,
@@ -433,6 +433,8 @@ export default function Home() {
   const [scanHistory, setScanHistory] = useState<ScanHistoryItem[]>([]);
   const [sensitivityMode, setSensitivityMode] = useState<'standard' | 'high' | 'strict'>('standard');
   const [inferenceTime, setInferenceTime] = useState<number | null>(null);
+  const [patientGender, setPatientGender] = useState<'Male' | 'Female' | 'Other' | ''>('');
+  const [patientDob, setPatientDob] = useState('');
 
   const resetAnalysisStates = () => {
     setPredictionResult(null);
@@ -504,10 +506,12 @@ export default function Home() {
   };
 
   // ── FEATURE 3: Quick-Sample Asset State Injector ──
-  const injectSampleImage = async (filename: string, sampleName: string, sampleId: string) => {
+  const injectSampleImage = async (filename: string, sampleName: string, sampleId: string,sampleGender: 'Male' | 'Female' | 'Other', sampleDob: string) => {
     resetAnalysisStates();
     setPatientName(sampleName);
     setPatientId(sampleId);
+    setPatientGender(sampleGender); // NEW
+    setPatientDob(sampleDob);
     setPredictionResult(null);
     setLoading(true);
 
@@ -543,6 +547,8 @@ export default function Home() {
       formData.append('file', selectedImage);
       formData.append('patient_name', patientName);
       formData.append('patient_id', patientId);
+      formData.append('patient_gender', patientGender); // NEW
+      formData.append('patient_dob', patientDob);
 
             // ── FEATURE 2: Start high-resolution timer ──
       const startTime = performance.now();
@@ -702,6 +708,36 @@ export default function Home() {
                       className="w-full px-4 py-3 bg-white/3 backdrop-blur-md border border-white/10 rounded-xl text-white placeholder-slate-500 font-mono focus:outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 focus:bg-white/6 transition-all"
                     />
                   </div>
+                  {/* ── NEW FIELD: Patient Gender ── */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1.5 uppercase tracking-[0.2em]">Gender</label>
+                    <div className="relative">
+                      <select
+                        value={patientGender}
+                        onChange={(e) => setPatientGender(e.target.value as any)}
+                        className="w-full appearance-none px-4 py-3 pr-10 bg-white/3 backdrop-blur-md border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 focus:bg-white/6 transition-all cursor-pointer"
+                      >
+                        <option value="" className="bg-[#0B132B] text-slate-500">Select Gender</option>
+                        <option value="Male" className="bg-[#0B132B] text-white">Male</option>
+                        <option value="Female" className="bg-[#0B132B] text-white">Female</option>
+                        <option value="Other" className="bg-[#0B132B] text-white">Other</option>
+                      </select>
+                      <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-300/80 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* ── NEW FIELD: Date of Birth ── */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1.5 uppercase tracking-[0.2em]">Date of Birth</label>
+                    <input
+                      type="date"
+                      value={patientDob}
+                      onChange={(e) => setPatientDob(e.target.value)}
+                      className="w-full px-4 py-3 bg-white/3 backdrop-blur-md border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 focus:bg-white/6 transition-all scheme-dark"
+                    />
+                  </div>
                   {/* ── FEATURE 1: AI Sensitivity Selector ── */}
                   <div>
                     <label className="block text-[11px] font-medium text-slate-400 mb-1.5 uppercase tracking-[0.2em]">
@@ -810,22 +846,28 @@ export default function Home() {
                   <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 text-center">
                     🔬 Fast-Track Evaluation Datasets
                   </p>
+                  {/* ── FEATURE 3: FAST-TRACK DATASETS ── */}
+                <div className="mt-4 pt-3 border-t border-white/5">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 text-center">
+                    🔬 Fast-Track Evaluation Datasets
+                  </p>
                   <div className="flex gap-2 justify-center">
                     <button
                       type="button"
-                      onClick={() => injectSampleImage('sample_normal.jpg', 'Normal Reference Case', 'REF-NORM')}
+                      onClick={() => injectSampleImage('sample_normal.jpg', 'Normal Reference Case', 'REF-NORM', 'Other', '2026-01-01')}
                       className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 transition-all cursor-pointer"
                     >
                       💡 Sample: Normal
                     </button>
                     <button
                       type="button"
-                      onClick={() => injectSampleImage('sample_pneumonia.jpg', 'Infection Reference Case', 'REF-PNEU')}
+                      onClick={() => injectSampleImage('sample_pneumonia.jpg', 'Infection Reference Case', 'REF-PNEU', 'Other', '2026-01-01')}
                       className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 hover:bg-rose-500/20 transition-all cursor-pointer"
                     >
                       🚨 Sample: Pneumonia
                     </button>
                   </div>
+                </div>
                 </div>
 
                 {selectedImage && (
@@ -1005,6 +1047,8 @@ export default function Home() {
                           <DynamicDownloadButton
                             patientName={patientName}
                             patientId={patientId}
+                            patientGender={predictionResult?.patient_gender || predictionResult?.patientGender || patientGender}
+                            patientDob={predictionResult?.patient_dob || predictionResult?.patientDob || patientDob}
                             diagnosis={predictionResult.prediction || 'Unknown'}
                             confidenceScores={confidenceScores}
                             date={new Date().toLocaleString()}

@@ -15,6 +15,8 @@ interface ConfidenceScores {
 interface DownloadReportButtonProps {
   patientName: string;
   patientId: string;
+  patientGender: string; // Add this line
+  patientDob: string;
   diagnosis: string;
   confidenceScores: ConfidenceScores;
   date: string;
@@ -26,6 +28,8 @@ interface DownloadReportButtonProps {
 export const DownloadReportButton: React.FC<DownloadReportButtonProps> = ({
   patientName,
   patientId,
+  patientGender,
+  patientDob,
   diagnosis,
   confidenceScores,
   date,
@@ -42,6 +46,8 @@ export const DownloadReportButton: React.FC<DownloadReportButtonProps> = ({
         <MedicalReportPDF
           patientName={patientName}
           patientId={patientId}
+          patientGender={patientGender}
+          patientDob={patientDob}
           diagnosis={diagnosis}
           confidenceScores={confidenceScores}
           date={date}

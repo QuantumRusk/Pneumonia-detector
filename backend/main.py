@@ -98,6 +98,8 @@ async def startup_event():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patient_name TEXT NOT NULL,
             patient_id TEXT NOT NULL,
+            patient_gender TEXT,
+            patient_dob TEXT,
             scan_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             prediction TEXT,
             normal_score REAL,
@@ -135,7 +137,9 @@ async def startup_event():
 async def predict(
     file: UploadFile = File(...),
     patient_name: str = Form(...),
-    patient_id: str = Form(...)
+    patient_id: str = Form(...),
+    patient_gender: str = Form(...), # NEW
+    patient_dob: str = Form(...)     # NEW
 ):
     contents = await file.read()
 
@@ -226,8 +230,8 @@ async def predict(
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO scans (patient_name, patient_id, prediction, normal_score, bacterial_score, viral_score) VALUES (?, ?, ?, ?, ?, ?)",
-        (patient_name, patient_id, prediction_label, normal_conf, bacterial_conf, viral_conf)
+        "INSERT INTO scans (patient_name, patient_id,patient_gender, patient_dob, prediction, normal_score, bacterial_score, viral_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (patient_name, patient_id, patient_gender, patient_dob,prediction_label, normal_conf, bacterial_conf, viral_conf)
     )
     conn.commit()
     scan_id = cursor.lastrowid
@@ -241,6 +245,8 @@ async def predict(
         "scan_date": scan_date,
         "patient_name": patient_name,
         "patient_id": patient_id,
+        "patient_gender": patient_gender,
+        "patient_dob": patient_dob,
         "prediction": prediction_label,
         "Normal": normal_conf,
         "Bacterial Pneumonia": bacterial_conf,

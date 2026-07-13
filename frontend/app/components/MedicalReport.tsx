@@ -260,6 +260,8 @@ interface ConfidenceScores {
 interface MedicalReportPDFProps {
   patientName: string;
   patientId: string;
+  patientGender: string; // Add this line
+  patientDob: string;
   diagnosis: string;
   confidenceScores: ConfidenceScores;
   date: string;
@@ -275,12 +277,18 @@ interface MedicalReportPDFProps {
 const MedicalReportPDF: React.FC<MedicalReportPDFProps> = ({
   patientName,
   patientId,
+  patientGender, // Add this line
+  patientDob,
   diagnosis,
   confidenceScores,
   date,
   originalImageURL,
   heatmapURL,
 }) => {
+  // ── NEW UTILITY: Convert YYYY-MM-DD to DD-MM-YYYY safely ──
+  const formattedDob = patientDob && patientDob.includes('-')
+    ? patientDob.split('-').reverse().join('-')
+    : patientDob || 'N/A';
   const isNormal = diagnosis === 'Normal';
 
   // Normalise scores from any key format
@@ -308,7 +316,7 @@ const MedicalReportPDF: React.FC<MedicalReportPDFProps> = ({
           <Text style={styles.headerBadge}>Confidential</Text>
         </View>
 
-        {/* Patient Information */}
+        {/* Patient Information Grid */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Patient Information</Text>
           <View style={styles.grid}>
@@ -319,6 +327,14 @@ const MedicalReportPDF: React.FC<MedicalReportPDFProps> = ({
             <View style={styles.gridCell}>
               <Text style={styles.gridLabel}>Patient ID</Text>
               <Text style={styles.gridValue}>{patientId || 'N/A'}</Text>
+            </View>
+            <View style={styles.gridCell}>
+              <Text style={styles.gridLabel}>Gender</Text>
+              <Text style={styles.gridValue}>{patientGender || 'N/A'}</Text>
+            </View>
+            <View style={styles.gridCell}>
+              <Text style={styles.gridLabel}>Date of Birth</Text>
+              <Text style={styles.gridValue}>{formattedDob}</Text>
             </View>
             <View style={styles.gridCell}>
               <Text style={styles.gridLabel}>Scan Date</Text>
