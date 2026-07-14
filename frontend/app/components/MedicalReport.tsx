@@ -389,7 +389,7 @@ const MedicalReportPDF: React.FC<MedicalReportPDFProps> = ({
         </View>
                 {/* AI Heatmap Comparison */}
         {(originalImageURL || heatmapURL) && (
-          <View style={styles.imageSection}>
+          <View style={styles.imageSection} wrap={false}>
             <Text style={styles.sectionTitle}>AI Diagnostic Heatmap Analysis (Grad-CAM)</Text>
             
             <View style={styles.imageRow}>
@@ -421,10 +421,10 @@ const MedicalReportPDF: React.FC<MedicalReportPDFProps> = ({
             {/* Heatmap Legend / Remarks */}
             <View style={styles.heatmapLegend}>
               <Text style={styles.legendText}>
-                🔬 <Text style={{ fontWeight: 'bold' }}>AI Focus Analysis:</Text> Red/Orange regions indicate the lung areas the AI considered most important for its diagnosis. Blue regions represent areas the model mostly ignored.
+                 <Text style={{ fontWeight: 'bold' }}>AI Focus Analysis:</Text> Red/Orange regions indicate the lung areas the AI considered most important for its diagnosis. Blue regions represent areas the model mostly ignored.
               </Text>
               <Text style={[styles.legendText, { marginTop: 4 }]}>
-                🧠 <Text style={{ fontWeight: 'bold' }}>Clinical Insight:</Text> The AI focuses on healthy chest tissue patterns to determine its final result. Heatmap highlights correlate with the model's diagnostic confidence regions.
+                 <Text style={{ fontWeight: 'bold' }}>Clinical Insight:</Text> The AI focuses on healthy chest tissue patterns to determine its final result. Heatmap highlights correlate with the model's diagnostic confidence regions.
               </Text>
             </View>
           </View>

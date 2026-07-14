@@ -142,7 +142,7 @@ function Hero() {
             {[{ k: "3-Class", v: "Tensor output" }, { k: "Grad-CAM", v: "Heatmap layer" }, { k: "PDF", v: "Auto report" }].map((s) => (
               <div key={s.k} className="glass rounded-xl px-3 py-3">
                 <dt className="text-sm font-semibold text-gradient">{s.k}</dt>
-                <dd className="mt-0.5 text-xs text-muted-foreground">{s.v}</dd>
+                <dd className="mt-0.5 text-xs text-white">{s.v}</dd>
               </div>
             ))}
           </dl>
@@ -319,7 +319,7 @@ function Footer() {
             </ul>
           </div>
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-mono">Contact</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-mono">Contact the developer.</div>
             <div className="mt-4 flex items-center gap-3">
               <a href="mailto:your.email@example.com" aria-label="Email" target="_blank" rel="noopener noreferrer" className="glass hover:bg-white/5 transition rounded-xl h-11 w-11 flex items-center justify-center"><Mail className="h-4 w-4" /></a>
               <a href="https://www.linkedin.com/in/anumeh-patil-867b39280/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="glass hover:bg-white/5 transition rounded-xl h-11 w-11 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-linkedin"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9" rx="1"/><circle cx="4" cy="4" r="2"/></svg></a>
