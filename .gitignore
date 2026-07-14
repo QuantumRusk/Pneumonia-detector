@@ -2,6 +2,7 @@
 frontend/node_modules/
 frontend/.next/
 frontend/dist/
+frontend/.env*.local
 
 # Backend environments & databases
 backend/.venv/
@@ -9,9 +10,18 @@ backend/env/
 backend/__pycache__/
 backend/*.pyc
 
-# Database files (Optional: if you want to keep local test data offline)
+# Database files
 backend/medical_history.db
+backend/*.db-journal
+
+# 🚨 AI Heatmap Generated Outputs (Crucial Addition)
+backend/static/cam_*.jpg
+backend/static/cam_*.jpeg
 
 # Large dataset files
 backend/chest_xray/
 backend/_MACOSX/
+
+# OS Specific junk
+.DS_Store
+Thumbs.db
