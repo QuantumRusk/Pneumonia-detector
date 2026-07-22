@@ -18,6 +18,9 @@ const DynamicDownloadButton = dynamic<any>(
   }
 );
 
+// Add this near the top of page.tsx (outside components)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 // ------- Results Card Component -------
 interface ResultsCardProps {
   result: {
@@ -458,7 +461,7 @@ export default function Home() {
 
   const fetchPatientHistory = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/history/${id}`);
+      const response = await fetch(`${API_URL}/history/${id}`);
       if (response.ok) {
         const data = await response.json();
         setScanHistory(data.scan_history || []);
@@ -553,7 +556,7 @@ export default function Home() {
             // ── FEATURE 2: Start high-resolution timer ──
       const startTime = performance.now();
 
-      const response = await fetch('http://localhost:8000/predict', {
+      const response = await fetch('${API_URL}/predict', {
         method: 'POST',
         body: formData,
       });
@@ -971,7 +974,7 @@ export default function Home() {
                                 ? originalImageBase64
                                 : predictionResult.heatmap_url?.startsWith('http')
                                   ? predictionResult.heatmap_url
-                                  : `http://localhost:8000${predictionResult.heatmap_url}`
+                                  : `${API_URL}${predictionResult.heatmap_url}`
                             }
                             alt={viewMode === 'original' ? 'Original X-Ray' : 'AI Heatmap'}
                             style={{
@@ -1055,7 +1058,7 @@ export default function Home() {
                             originalImageURL={originalImageBase64  ?? undefined}
                             heatmapURL={predictionResult.heatmap_url?.startsWith('http')
                               ? predictionResult.heatmap_url
-                              : `http://localhost:8000${predictionResult.heatmap_url}`}
+                              : `${API_URL}${predictionResult.heatmap_url}`}
                           />
                         </div>
                       </div>

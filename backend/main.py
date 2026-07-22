@@ -56,7 +56,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],  # Allows Vercel frontend to talk to Azure API
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -211,7 +211,7 @@ async def predict(
 
     # Create the public URL for the heatmap
         # Create the public URL for the heatmap
-    heatmap_url = f"http://localhost:8000/static/{heatmap_filename}"
+    heatmap_url = f"/static/{heatmap_filename}"
 
     # --- CORRECTED: Dynamic probability extraction & label mapping ---
     # probabilities already computed above via torch.softmax (sums to 100%)
