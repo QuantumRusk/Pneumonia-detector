@@ -461,7 +461,7 @@ export default function Home() {
 
   const fetchPatientHistory = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`${API_URL}/history/${id}`);
+      const response = await fetch(`${API_BASE_URL}/history/${id}`);
       if (response.ok) {
         const data = await response.json();
         setScanHistory(data.scan_history || []);
@@ -974,7 +974,7 @@ export default function Home() {
                                 ? originalImageBase64
                                 : predictionResult.heatmap_url?.startsWith('http')
                                   ? predictionResult.heatmap_url
-                                  : `${API_URL}${predictionResult.heatmap_url}`
+                                  : `${API_BASE_URL}${predictionResult.heatmap_url}`
                             }
                             alt={viewMode === 'original' ? 'Original X-Ray' : 'AI Heatmap'}
                             style={{
@@ -1058,7 +1058,7 @@ export default function Home() {
                             originalImageURL={originalImageBase64  ?? undefined}
                             heatmapURL={predictionResult.heatmap_url?.startsWith('http')
                               ? predictionResult.heatmap_url
-                              : `${API_URL}${predictionResult.heatmap_url}`}
+                              : `${API_BASE_URL}${predictionResult.heatmap_url}`}
                           />
                         </div>
                       </div>
