@@ -19,7 +19,7 @@ const DynamicDownloadButton = dynamic<any>(
 );
 
 // Add this near the top of page.tsx (outside components)
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||'https://pneumonia-backend-app-cggggpdndme5h3fk.centralindia-01.azurewebsites.net/';
 
 // ------- Results Card Component -------
 interface ResultsCardProps {
@@ -556,7 +556,7 @@ export default function Home() {
             // ── FEATURE 2: Start high-resolution timer ──
       const startTime = performance.now();
 
-      const response = await fetch('${API_URL}/predict', {
+      const response = await fetch('${API_BASE_URL}/predict', {
         method: 'POST',
         body: formData,
       });
