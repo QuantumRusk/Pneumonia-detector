@@ -556,7 +556,7 @@ export default function Home() {
             // ── FEATURE 2: Start high-resolution timer ──
       const startTime = performance.now();
 
-      const response = await fetch('${API_BASE_URL}/predict', {
+      const response = await fetch(`${API_BASE_URL}/predict`, {
         method: 'POST',
         body: formData,
       });
