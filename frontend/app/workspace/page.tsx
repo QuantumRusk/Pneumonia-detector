@@ -19,7 +19,7 @@ const DynamicDownloadButton = dynamic<any>(
 );
 
 // Add this near the top of page.tsx (outside components)
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||'https://pneumonia-backend-app-cggggpdndme5h3fk.centralindia-01.azurewebsites.net/';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://pneumonia-backend-app-cggggpdndme5h3fk.centralindia-01.azurewebsites.net').replace(/\/$/, '');
 
 // ------- Results Card Component -------
 interface ResultsCardProps {
