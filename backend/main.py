@@ -53,10 +53,15 @@ def is_valid_xray(image_bytes: bytes) -> bool:
 # App setup
 # -------------------------------
 app = FastAPI()
+origins = [
+    "https://pneumonia-detector-eta.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:5173",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows Vercel frontend to talk to Azure API
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
